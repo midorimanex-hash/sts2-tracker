@@ -10,7 +10,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 
-from routers import runs
+from routers import auth, runs
 
 load_dotenv()
 
@@ -39,6 +39,7 @@ app.add_middleware(
 # ============================================================
 # ルーター
 # ============================================================
+app.include_router(auth.router)
 app.include_router(runs.router)
 
 
