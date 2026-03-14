@@ -7,7 +7,7 @@ from pathlib import Path
 from watchdog.events import FileCreatedEvent, FileModifiedEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
-import queue as q
+import offline_queue as q
 import uploader
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ STS2_PROCESS_NAME = "SlayTheSpire2.exe"
 
 def find_history_dirs() -> list[Path]:
     """
-    AppData\Roaming\SlayTheSpire2\steam\{steamID}\profile1\saves\history\
+    AppData/Roaming/SlayTheSpire2/steam/{steamID}/profile1/saves/history/
     を全SteamIDぶん返す。
     """
     appdata = Path.home() / "AppData" / "Roaming" / "SlayTheSpire2" / "steam"

@@ -58,6 +58,25 @@ def _iter_floors(map_point_history: list[list[dict]]):
 
 
 # ============================================================
+# ヘルパー
+# ============================================================
+
+def _get(item: Any, *keys: str, default: Any = None) -> Any:
+    """
+    item が str なら item 自体を返す。
+    item が dict なら keys を順に試して最初にヒットした値を返す。
+    どちらでもなければ default を返す。
+    """
+    if isinstance(item, str):
+        return item
+    if isinstance(item, dict):
+        for k in keys:
+            if (v := item.get(k)) is not None:
+                return v
+    return default
+
+
+# ============================================================
 # パーサー群
 # map_point_history の全フロアを走査して各テーブル用の行を生成する
 # ============================================================
@@ -107,14 +126,18 @@ def _parse_card_choices(
     rows = []
     for _, floor_num, floor_data in _iter_floors(map_point_history):
         for choice in (floor_data.get("_ps") or {}).get("card_choices") or []:
-            picked = choice.get("picked")
+            if isinstance(choice, str):
+                picked, not_picked = choice, []
+            else:
+                picked = choice.get("picked")
+                not_picked = choice.get("not_picked") or []
             rows.append({
                 "run_id": run_id,
                 "user_id": user_id,
                 "floor": floor_num,
                 "picked": picked,
                 "skipped": picked is None,
-                "not_picked": choice.get("not_picked") or [],
+                "not_picked": not_picked,
             })
     return rows
 
@@ -125,13 +148,19 @@ def _parse_relic_choices(
     rows = []
     for _, floor_num, floor_data in _iter_floors(map_point_history):
         for choice in (floor_data.get("_ps") or {}).get("relic_choices") or []:
+            if isinstance(choice, str):
+                picked, not_picked, source = choice, [], "UNKNOWN"
+            else:
+                picked = choice.get("picked")
+                not_picked = choice.get("not_picked") or []
+                source = choice.get("source", "UNKNOWN")
             rows.append({
                 "run_id": run_id,
                 "user_id": user_id,
                 "floor": floor_num,
-                "source": choice.get("source", "UNKNOWN"),
-                "picked": choice.get("picked"),
-                "not_picked": choice.get("not_picked") or [],
+                "source": source,
+                "picked": picked,
+                "not_picked": not_picked,
             })
     return rows
 
@@ -142,12 +171,17 @@ def _parse_potion_choices(
     rows = []
     for _, floor_num, floor_data in _iter_floors(map_point_history):
         for choice in (floor_data.get("_ps") or {}).get("potion_choices") or []:
+            if isinstance(choice, str):
+                picked, not_picked = choice, []
+            else:
+                picked = choice.get("picked")
+                not_picked = choice.get("not_picked") or []
             rows.append({
                 "run_id": run_id,
                 "user_id": user_id,
                 "floor": floor_num,
-                "picked": choice.get("picked"),
-                "not_picked": choice.get("not_picked") or [],
+                "picked": picked,
+                "not_picked": not_picked,
             })
     return rows
 
@@ -183,12 +217,18 @@ def _parse_rest_site_choices(
     rows = []
     for _, floor_num, floor_data in _iter_floors(map_point_history):
         for choice in (floor_data.get("_ps") or {}).get("rest_site_choices") or []:
+            # 文字列の場合（例: "SMITH"）はそれ自体が action
+            if isinstance(choice, str):
+                action, card_upgraded = choice, None
+            else:
+                action = choice.get("action", "UNKNOWN")
+                card_upgraded = choice.get("card_upgraded")
             rows.append({
                 "run_id": run_id,
                 "user_id": user_id,
                 "floor": floor_num,
-                "action": choice.get("action", "UNKNOWN"),
-                "card_upgraded": choice.get("card_upgraded"),
+                "action": action,
+                "card_upgraded": card_upgraded,
             })
     return rows
 
@@ -201,13 +241,19 @@ def _parse_ancient_choices(
         choice = (floor_data.get("_ps") or {}).get("ancient_choice")
         if not choice:
             continue
+        if isinstance(choice, str):
+            ancient_id, picked, not_picked = "", choice, []
+        else:
+            ancient_id = choice.get("ancient_id", "")
+            picked = choice.get("picked", "")
+            not_picked = choice.get("not_picked") or []
         rows.append({
             "run_id": run_id,
             "user_id": user_id,
             "floor": floor_num,
-            "ancient_id": choice.get("ancient_id", ""),
-            "picked": choice.get("picked", ""),
-            "not_picked": choice.get("not_picked") or [],
+            "ancient_id": ancient_id,
+            "picked": picked,
+            "not_picked": not_picked,
         })
     return rows
 
@@ -218,13 +264,19 @@ def _parse_event_choices(
     rows = []
     for _, floor_num, floor_data in _iter_floors(map_point_history):
         for choice in (floor_data.get("_ps") or {}).get("event_choices") or []:
+            if isinstance(choice, str):
+                event_id, option_chosen, result = "", choice, None
+            else:
+                event_id = choice.get("event_id", "")
+                option_chosen = choice.get("option_chosen", "")
+                result = choice.get("result")
             rows.append({
                 "run_id": run_id,
                 "user_id": user_id,
                 "floor": floor_num,
-                "event_id": choice.get("event_id", ""),
-                "option_chosen": choice.get("option_chosen", ""),
-                "result": choice.get("result"),
+                "event_id": event_id,
+                "option_chosen": option_chosen,
+                "result": result,
             })
     return rows
 

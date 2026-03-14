@@ -11,7 +11,7 @@ import pystray
 from PIL import Image, ImageDraw
 
 import config
-import queue as q
+import offline_queue as q
 import uploader
 from watcher import STS2Watcher
 

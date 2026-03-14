@@ -7,7 +7,7 @@ from pathlib import Path
 import httpx
 
 import config
-import queue as q
+import offline_queue as q
 
 logger = logging.getLogger(__name__)
 
