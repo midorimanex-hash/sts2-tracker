@@ -1,0 +1,4 @@
+watchdog>=6.0.0
+httpx>=0.28.0
+python-dotenv>=1.0.0
+# PyInstaller はビルド時のみ（requirements-build.txt に分離予定）
