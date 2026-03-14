@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
@@ -354,7 +355,10 @@ def upload_run(
         "was_abandoned": bool(d.get("was_abandoned", False)),
         "killed_by_encounter": d.get("killed_by_encounter"),
         "acts": d.get("acts"),
-        "run_timestamp": d.get("start_time"),  # start_time をランのタイムスタンプとして使用
+        "run_timestamp": (
+            datetime.fromtimestamp(d["start_time"], tz=timezone.utc).isoformat()
+            if d.get("start_time") is not None else None
+        ),
     }
 
     try:
