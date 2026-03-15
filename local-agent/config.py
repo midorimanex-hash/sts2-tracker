@@ -7,7 +7,7 @@ from pathlib import Path
 CONFIG_DIR = Path.home() / ".sts2tracker"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 
-DEFAULT_API_URL = "http://localhost:8000"
+DEFAULT_API_URL = "https://sts2-tracker.onrender.com"
 DASHBOARD_URL = "https://sts2tracker.pages.dev"  # Cloudflare Pagesのドメインに合わせて変更
 
 
