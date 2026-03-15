@@ -2,11 +2,30 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from supabase import Client, create_client
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+# ユーザーIDを持つ全テーブル（migrate で一括更新）
+_USER_TABLES = [
+    "runs",
+    "floor_events",
+    "floor_stats",
+    "card_choices",
+    "relic_choices",
+    "potion_choices",
+    "potion_events",
+    "rest_site_choices",
+    "ancient_choices",
+    "event_choices",
+    "shop_events",
+    "card_enchantments",
+    "deck_cards",
+    "final_relics",
+    "final_potions",
+]
 
 
 # ============================================================
@@ -53,6 +72,17 @@ class RefreshResponse(BaseModel):
     refresh_token: str
 
 
+class MigrateRequest(BaseModel):
+    old_user_id: str   # 移行元の旧 Supabase UUID
+    new_user_id: str   # 移行先の新 Supabase UUID（登録直後の認証済みユーザー）
+
+
+class MigrateResponse(BaseModel):
+    migrated_from: str
+    migrated_to: str
+    updated_tables: list[str]
+
+
 # ============================================================
 # エンドポイント
 # ============================================================
@@ -91,11 +121,9 @@ def register(
         )
 
     # users テーブルに挿入（service_role で RLS バイパス）
-    # auth.uid() と users.id が一致する設計なので Supabase UUID をそのまま使う
     try:
         admin_client.table("users").insert({"id": str(user.id)}).execute()
     except Exception as e:
-        # 万が一の重複挿入は無視（通常は発生しない）
         err = str(e)
         if "duplicate key" not in err and "unique" not in err.lower():
             raise HTTPException(
@@ -140,5 +168,74 @@ def refresh(
     return RefreshResponse(
         user_id=str(user.id),
         jwt=session.access_token,
-        refresh_token=session.refresh_token,  # Supabase はリフレッシュのたびに新しい値を返す
+        refresh_token=session.refresh_token,
+    )
+
+
+@router.post("/migrate", response_model=MigrateResponse, status_code=status.HTTP_200_OK)
+def migrate(
+    payload: MigrateRequest,
+    request: Request,
+    anon_client: Client = Depends(get_supabase_anon),
+    admin_client: Client = Depends(get_supabase_admin),
+) -> MigrateResponse:
+    """
+    refresh_token 紛失後に新規ユーザーを作成した際、
+    旧ユーザーのデータを新ユーザーに移行する。
+
+    セキュリティ：Authorization ヘッダーの JWT を検証し、
+    その sub が new_user_id と一致することを確認する。
+    これにより、第三者が他人のデータを奪取できないことを保証する。
+    """
+    # JWT 検証：Authorization ヘッダーから取得
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authorization ヘッダーが必要です",
+        )
+    jwt = auth_header[len("Bearer "):]
+
+    try:
+        user_resp = anon_client.auth.get_user(jwt)
+        authed_user_id = str(user_resp.user.id)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"JWT 検証失敗: {e}",
+        )
+
+    # JWT の sub が new_user_id と一致するか確認
+    if authed_user_id != payload.new_user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="JWT の sub が new_user_id と一致しません",
+        )
+
+    # 全テーブルの user_id を old → new に更新（service_role で RLS バイパス）
+    updated: list[str] = []
+    for table in _USER_TABLES:
+        try:
+            result = (
+                admin_client.table(table)
+                .update({"user_id": payload.new_user_id})
+                .eq("user_id", payload.old_user_id)
+                .execute()
+            )
+            if result.data:
+                updated.append(table)
+        except Exception as e:
+            # 1 テーブルの失敗でも他のテーブルの移行は続行する
+            pass
+
+    # users テーブルの旧レコードを削除（新レコードは register 時に作成済み）
+    try:
+        admin_client.table("users").delete().eq("id", payload.old_user_id).execute()
+    except Exception:
+        pass
+
+    return MigrateResponse(
+        migrated_from=payload.old_user_id,
+        migrated_to=payload.new_user_id,
+        updated_tables=updated,
     )

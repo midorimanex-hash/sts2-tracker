@@ -22,6 +22,11 @@ def _save(data: dict) -> None:
     CONFIG_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
+def get_user_id() -> str | None:
+    """config.json に user_id があれば返す。なければ None。"""
+    return _load().get("user_id")
+
+
 def get_or_create_user_id() -> str:
     data = _load()
     if "user_id" not in data:

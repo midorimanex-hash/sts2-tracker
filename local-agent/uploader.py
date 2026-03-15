@@ -167,3 +167,33 @@ def refresh_token() -> bool:
     except Exception as e:
         logger.error(f"リフレッシュエラー: {e}")
         return False
+
+
+def migrate_user(old_user_id: str, new_user_id: str, jwt: str) -> bool:
+    """
+    refresh_token 紛失後に新規ユーザーを作成した際、
+    旧ユーザーのデータを新ユーザーへ移行する。
+    バックエンドが JWT を検証して new_user_id との一致を確認する。
+    """
+    try:
+        resp = httpx.post(
+            f"{config.get_api_url()}/auth/migrate",
+            json={"old_user_id": old_user_id, "new_user_id": new_user_id},
+            headers={"Authorization": f"Bearer {jwt}"},
+            timeout=60,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            logger.info(
+                f"データ移行完了: {old_user_id} → {new_user_id} "
+                f"({len(data.get('updated_tables', []))} tables)"
+            )
+            return True
+        logger.error(f"データ移行失敗 {resp.status_code}: {resp.text[:200]}")
+        return False
+    except httpx.ConnectError:
+        logger.warning("サーバーに接続できません。データ移行をスキップします。")
+        return False
+    except Exception as e:
+        logger.error(f"データ移行エラー: {e}")
+        return False

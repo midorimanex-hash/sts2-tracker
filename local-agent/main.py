@@ -103,14 +103,43 @@ def _queue_flusher(stop_event: threading.Event) -> None:
 # ============================================================
 
 def _setup() -> None:
-    user_id = config.get_or_create_user_id()
-    logger.info(f"ユーザーID: {user_id}")
+    existing_user_id = config.get_user_id()
 
-    if config.get_jwt() is None:
-        logger.info("初回起動。サーバーにユーザー登録を試みます。")
-        success = uploader.register_user(user_id)
+    if existing_user_id is None:
+        # 未登録：新規ユーザー登録
+        local_user_id = config.get_or_create_user_id()
+        logger.info(f"初回起動。ユーザー登録を試みます。(local_id={local_user_id})")
+        success = uploader.register_user(local_user_id)
         if not success:
             logger.warning("サーバーに接続できません。次回起動時に再試行します。")
+    else:
+        logger.info(f"ユーザーID: {existing_user_id}")
+        if config.get_jwt() is None:
+            # user_id は既にある → 新規登録せずJWTを復元する
+            recovered = False
+
+            # 1st: refresh_token があればリフレッシュを試みる
+            if config.get_refresh_token():
+                logger.info("JWTなし。リフレッシュトークンでJWT取得を試みます。")
+                recovered = uploader.refresh_token()
+
+            # 2nd: リフレッシュ失敗 or refresh_token なし → 新規登録 + データ移行
+            if not recovered:
+                logger.warning(
+                    "リフレッシュ失敗または refresh_token なし。"
+                    "新規ユーザーを作成して旧データを移行します。"
+                )
+                tmp_id = config.get_or_create_user_id()
+                registered = uploader.register_user(tmp_id)
+                if registered:
+                    new_user_id = config.get_user_id()
+                    new_jwt = config.get_jwt()
+                    if new_user_id and new_jwt and new_user_id != existing_user_id:
+                        uploader.migrate_user(existing_user_id, new_user_id, new_jwt)
+                    recovered = True
+
+            if not recovered:
+                logger.warning("JWT取得失敗。次回起動時に再試行します。")
 
 
 # ============================================================
