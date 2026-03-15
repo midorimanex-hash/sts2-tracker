@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { authState } from '$lib/auth.svelte';
 	import { supabase, getAuthClient } from '$lib/supabase';
+	import { getEncounterName } from '$lib/localization';
 
 	type Run = {
 		id: string;
@@ -164,8 +165,8 @@
 								<td class="px-4 py-3 text-[#8b949e]">
 									{run.ascension > 0 ? `A${run.ascension}` : '—'}
 								</td>
-								<td class="hidden px-4 py-3 font-mono text-xs text-[#8b949e] sm:table-cell">
-									{run.killed_by_encounter ?? (run.win ? '心臓撃破' : '—')}
+								<td class="hidden px-4 py-3 text-xs text-[#8b949e] sm:table-cell">
+									{run.win ? '心臓撃破' : getEncounterName(run.killed_by_encounter)}
 								</td>
 								<td class="hidden px-4 py-3 text-right text-xs text-[#8b949e] sm:table-cell">
 									{formatDate(run.played_at)}
