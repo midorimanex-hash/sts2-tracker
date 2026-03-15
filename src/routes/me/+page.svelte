@@ -35,6 +35,8 @@
 	const isViewingOther = !!uidParam;
 	const displayUserId = $derived(uidParam ?? authState.userId ?? '');
 
+	const UID_KEY = 'sts2_uid';
+
 	function formatDate(iso: string): string {
 		return new Date(iso).toLocaleDateString('ja-JP', {
 			year: 'numeric',
@@ -65,7 +67,8 @@
 
 	onMount(() => {
 		if (uidParam) {
-			// ?uid= 指定：公開クライアントで取得（RLS 読み取り全員OK）
+			// ?uid= 指定：localStorageに保存して次回以降も使えるようにする
+			localStorage.setItem(UID_KEY, uidParam);
 			loadRuns(uidParam);
 		} else if (authState.isLoggedIn && authState.userId) {
 			// ログイン中：認証クライアントで自分のデータ取得

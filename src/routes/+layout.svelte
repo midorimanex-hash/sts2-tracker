@@ -32,7 +32,15 @@
 			</a>
 			<div class="flex items-center gap-4 text-sm">
 				<a href="/" class="text-[#8b949e] transition hover:text-[#e6edf3]">全体統計</a>
-				<a href="/me" class="text-[#8b949e] transition hover:text-[#e6edf3]">マイ統計</a>
+				<a
+					href="/me"
+					onclick={(e) => {
+						e.preventDefault();
+						const uid = localStorage.getItem('sts2_uid');
+						goto(uid ? `/me?uid=${uid}` : '/me');
+					}}
+					class="text-[#8b949e] transition hover:text-[#e6edf3]"
+				>マイ統計</a>
 				<a href="/download" class="text-[#8b949e] transition hover:text-[#e6edf3]">ダウンロード</a>
 				{#if authState.isLoggedIn}
 					<span class="rounded-full bg-[#21262d] px-3 py-1 text-xs text-[#3fb950]">
