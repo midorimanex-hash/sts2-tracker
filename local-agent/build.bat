@@ -5,60 +5,65 @@ echo ========================================
 echo  STS2 Tracker - PyInstaller Build
 echo ========================================
 
-:: assetsディレクトリの確認
+:: Check icon file
 if not exist "assets\icon.ico" (
-    echo [ERROR] assets\icon.ico が見つかりません。
-    echo         icon.ico を local-agent\assets\ に配置してください。
+    echo [ERROR] assets\icon.ico not found.
+    echo         Place icon.ico in local-agent\assets\ before building.
     exit /b 1
 )
 
-:: venv の確認・アクティベート
-if exist "venv\Scripts\activate.bat" (
-    echo [INFO] venv をアクティベートします...
-    call venv\Scripts\activate.bat
+:: Resolve Python executable
+if exist "venv\Scripts\python.exe" (
+    set PYTHON=venv\Scripts\python.exe
+    set PIP=venv\Scripts\pip.exe
+    echo [INFO] Using venv: %PYTHON%
 ) else (
-    echo [WARN] venv が見つかりません。グローバル Python を使用します。
+    echo [WARN] venv not found. Using global Python.
+    set PYTHON=python
+    set PIP=pip
 )
 
-:: PyInstaller のインストール確認
-python -m pyinstaller --version >nul 2>&1
-if errorlevel 1 (
-    echo [INFO] PyInstaller をインストールします...
-    pip install pyinstaller
+:: Check PyInstaller
+if exist "venv\Scripts\pyinstaller.exe" (
+    set PYINSTALLER=venv\Scripts\pyinstaller.exe
+) else (
+    echo [INFO] Installing PyInstaller into venv...
+    %PIP% install pyinstaller
+    set PYINSTALLER=venv\Scripts\pyinstaller.exe
 )
 
-:: 依存パッケージのインストール
-echo [INFO] 依存パッケージをインストールします...
-pip install -r requirements.txt
+:: Install dependencies
+echo [INFO] Installing dependencies...
+%PIP% install -r requirements.txt
 
-:: 前回のビルド成果物を削除
+:: Clean previous build
 if exist "dist\STS2Tracker.exe" (
-    echo [INFO] 前回のビルドを削除します...
+    echo [INFO] Removing previous build...
     del /f "dist\STS2Tracker.exe"
 )
 if exist "build" (
     rmdir /s /q build
 )
 
-:: ビルド実行
-echo [INFO] ビルドを開始します...
-python -m pyinstaller sts2tracker.spec --clean
+:: Build
+echo [INFO] Starting build...
+%PYINSTALLER% sts2tracker.spec --clean
 
 if errorlevel 1 (
-    echo [ERROR] ビルドに失敗しました。
+    echo [ERROR] Build failed.
     exit /b 1
 )
 
-:: 成果物の確認
+:: Verify output
 if exist "dist\STS2Tracker.exe" (
     echo.
     echo ========================================
-    echo  ビルド成功！
-    echo  出力: dist\STS2Tracker.exe
+    echo  Build succeeded!
+    echo  Output: dist\STS2Tracker.exe
     echo ========================================
-    for %%A in ("dist\STS2Tracker.exe") do echo  サイズ: %%~zA bytes
+    for %%A in ("dist\STS2Tracker.exe") do echo  Size: %%~zA bytes
 ) else (
-    echo [ERROR] dist\STS2Tracker.exe が生成されませんでした。
+    echo [ERROR] dist\STS2Tracker.exe was not created.
     exit /b 1
 )
 
