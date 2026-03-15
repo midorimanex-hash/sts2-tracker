@@ -243,6 +243,10 @@ def _parse_ancient_choices(
             continue
         if isinstance(choice, str):
             ancient_id, picked, not_picked = "", choice, []
+        elif isinstance(choice, list):
+            picked = next((c["TextKey"] for c in choice if c.get("was_chosen")), "")
+            not_picked = [c["TextKey"] for c in choice if not c.get("was_chosen")]
+            ancient_id = ""
         else:
             ancient_id = choice.get("ancient_id", "")
             picked = choice.get("picked", "")
