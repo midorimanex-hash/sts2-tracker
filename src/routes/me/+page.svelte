@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 	import { authState } from '$lib/auth.svelte';
-	import { getAuthClient } from '$lib/supabase';
+	import { supabase, getAuthClient } from '$lib/supabase';
 
 	type Run = {
 		id: string;
@@ -30,6 +31,11 @@
 	let wins = $derived(runs.filter((r) => r.win).length);
 	let winRate = $derived(totalRuns > 0 ? ((wins / totalRuns) * 100).toFixed(1) : '—');
 
+	// ?uid= があればそのユーザー、なければ自分
+	const uidParam = $page.url.searchParams.get('uid');
+	const isViewingOther = !!uidParam;
+	const displayUserId = $derived(uidParam ?? authState.userId ?? '');
+
 	function formatDate(iso: string): string {
 		return new Date(iso).toLocaleDateString('ja-JP', {
 			year: 'numeric',
@@ -40,13 +46,9 @@
 		});
 	}
 
-	async function loadMyRuns() {
-		const jwt = authState.jwt;
-		const userId = authState.userId;
-		if (!jwt || !userId) return;
-
+	async function loadRuns(userId: string, jwt?: string | null) {
 		loading = true;
-		const client = getAuthClient(jwt);
+		const client = jwt ? getAuthClient(jwt) : supabase;
 		const { data, error } = await client
 			.from('runs')
 			.select(
@@ -63,8 +65,12 @@
 	}
 
 	onMount(() => {
-		if (authState.isLoggedIn) {
-			loadMyRuns();
+		if (uidParam) {
+			// ?uid= 指定：公開クライアントで取得（RLS 読み取り全員OK）
+			loadRuns(uidParam);
+		} else if (authState.isLoggedIn && authState.userId) {
+			// ログイン中：認証クライアントで自分のデータ取得
+			loadRuns(authState.userId, authState.jwt);
 		} else {
 			loading = false;
 		}
@@ -75,8 +81,8 @@
 	<title>STS2 Tracker — マイ統計</title>
 </svelte:head>
 
-{#if !authState.isLoggedIn}
-	<!-- 未ログイン -->
+{#if !isViewingOther && !authState.isLoggedIn}
+	<!-- 未ログイン（uid パラメータなし） -->
 	<div class="flex flex-col items-center justify-center py-24 text-center">
 		<div class="mb-4 text-5xl">⚔</div>
 		<h1 class="mb-2 text-2xl font-bold text-[#e6edf3]">ログインが必要です</h1>
@@ -98,8 +104,8 @@
 {:else}
 	<!-- ヘッダー -->
 	<div class="mb-8">
-		<h1 class="text-2xl font-bold text-[#e6edf3]">マイ統計</h1>
-		<p class="mt-1 font-mono text-xs text-[#8b949e]">ID: {authState.userId}</p>
+		<h1 class="text-2xl font-bold text-[#e6edf3]">{isViewingOther ? 'ユーザー統計' : 'マイ統計'}</h1>
+		<p class="mt-1 font-mono text-xs text-[#8b949e]">ID: {displayUserId}</p>
 	</div>
 
 	<!-- サマリーカード -->

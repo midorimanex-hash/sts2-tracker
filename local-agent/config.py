@@ -8,7 +8,7 @@ CONFIG_DIR = Path.home() / ".sts2tracker"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 
 DEFAULT_API_URL = "https://sts2-tracker.onrender.com"
-DASHBOARD_URL = "https://sts2tracker.pages.dev"  # Cloudflare Pagesのドメインに合わせて変更
+DASHBOARD_URL = "https://sts2-tracker.pages.dev"
 
 
 def _load() -> dict:
@@ -52,7 +52,7 @@ def get_api_url() -> str:
 
 
 def get_dashboard_url() -> str:
-    jwt = get_jwt()
-    if jwt:
-        return f"{DASHBOARD_URL}?token={jwt}"
+    user_id = _load().get("user_id")
+    if user_id:
+        return f"{DASHBOARD_URL}/me?uid={user_id}"
     return DASHBOARD_URL
