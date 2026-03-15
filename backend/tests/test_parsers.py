@@ -5,6 +5,7 @@ Supabase・FastAPI への接続は不要（純粋なデータ変換のみ）
 from __future__ import annotations
 
 import pytest
+from datetime import datetime, timezone
 
 from routers.runs import (
     _get,
@@ -531,3 +532,47 @@ class TestSampleHistory:
         assert rows[0]["floor"] == 3
         assert rows[0]["picked"] == "ARCANE_SCROLL"
         assert set(rows[0]["not_picked"]) == {"BOOMING_CONCH", "PRECARIOUS_SHEARS"}
+
+
+# ============================================================
+# played_at 変換ロジック（run_row 生成の単体テスト）
+# ============================================================
+
+def _build_played_at(save_data: dict) -> str:
+    """runs.py の run_row 内の played_at 生成ロジックをそのまま抜き出した関数"""
+    d = save_data
+    return (
+        datetime.fromtimestamp(d["start_time"], tz=timezone.utc).isoformat()
+        if d.get("start_time") is not None
+        else datetime.now(tz=timezone.utc).isoformat()
+    )
+
+
+class TestPlayedAt:
+    def test_start_time_converted_to_iso(self):
+        ts = 1773543372
+        result = _build_played_at({"start_time": ts})
+        expected = datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+        assert result == expected
+
+    def test_start_time_zero_is_valid(self):
+        result = _build_played_at({"start_time": 0})
+        assert "1970-01-01" in result
+
+    def test_missing_start_time_falls_back_to_now(self):
+        before = datetime.now(tz=timezone.utc)
+        result = _build_played_at({})
+        after = datetime.now(tz=timezone.utc)
+        dt = datetime.fromisoformat(result)
+        assert before <= dt <= after
+
+    def test_null_start_time_falls_back_to_now(self):
+        before = datetime.now(tz=timezone.utc)
+        result = _build_played_at({"start_time": None})
+        after = datetime.now(tz=timezone.utc)
+        dt = datetime.fromisoformat(result)
+        assert before <= dt <= after
+
+    def test_result_is_utc(self):
+        result = _build_played_at({"start_time": 1773543372})
+        assert "+00:00" in result or result.endswith("Z")

@@ -11,8 +11,7 @@
 		win: boolean;
 		was_abandoned: boolean;
 		killed_by_encounter: string | null;
-		uploaded_at: string;
-		run_timestamp: string | null;
+		played_at: string;
 	};
 
 	const charLabel: Record<string, string> = {
@@ -52,10 +51,10 @@
 		const { data, error } = await client
 			.from('runs')
 			.select(
-				'id, character, ascension, win, was_abandoned, killed_by_encounter, uploaded_at, run_timestamp'
+				'id, character, ascension, win, was_abandoned, killed_by_encounter, played_at'
 			)
 			.eq('user_id', userId)
-			.order('uploaded_at', { ascending: false })
+			.order('played_at', { ascending: false })
 			.limit(200);
 
 		if (!error && data) {
@@ -141,7 +140,7 @@
 							<th class="px-4 py-3">キャラ</th>
 							<th class="px-4 py-3">AC</th>
 							<th class="px-4 py-3 hidden sm:table-cell">死因 / 結果</th>
-							<th class="px-4 py-3 hidden sm:table-cell text-right">日時</th>
+							<th class="px-4 py-3 hidden sm:table-cell text-right">プレイ日時</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -166,7 +165,7 @@
 									{run.killed_by_encounter ?? (run.win ? '心臓撃破' : '—')}
 								</td>
 								<td class="hidden px-4 py-3 text-right text-xs text-[#8b949e] sm:table-cell">
-									{formatDate(run.uploaded_at)}
+									{formatDate(run.played_at)}
 								</td>
 							</tr>
 						{/each}
