@@ -62,6 +62,33 @@ def upload_file(file_path: str) -> bool:
         q.mark_uploaded(file_path)  # サーバー側で重複検知 → 送信済み扱い
         logger.info(f"重複スキップ: {path.name}")
         return True
+    elif resp.status_code == 401:
+        logger.warning("JWT期限切れ。リフレッシュを試みます。")
+        if not refresh_token():
+            logger.error("JWTリフレッシュ失敗。キューに保持します。")
+            return False
+        new_jwt = config.get_jwt()
+        try:
+            retry_resp = httpx.post(
+                f"{config.get_api_url()}/runs/upload",
+                json=payload,
+                headers={"Authorization": f"Bearer {new_jwt}"},
+                timeout=60,
+            )
+        except Exception as e:
+            logger.error(f"リトライエラー: {path.name} — {e}")
+            return False
+        if retry_resp.status_code == 201:
+            q.mark_uploaded(file_path)
+            logger.info(f"リトライ成功: {path.name}")
+            return True
+        elif retry_resp.status_code == 409:
+            q.mark_uploaded(file_path)
+            logger.info(f"重複スキップ（リトライ）: {path.name}")
+            return True
+        else:
+            logger.error(f"リトライ失敗 {retry_resp.status_code}: {retry_resp.text[:200]}")
+            return False
     else:
         logger.error(f"アップロード失敗 {resp.status_code}: {resp.text[:200]}")
         return False
