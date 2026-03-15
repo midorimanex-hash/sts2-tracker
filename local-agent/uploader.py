@@ -45,7 +45,7 @@ def upload_file(file_path: str) -> bool:
             f"{config.get_api_url()}/runs/upload",
             json=payload,
             headers={"Authorization": f"Bearer {jwt}"},
-            timeout=30,
+            timeout=60,
         )
     except httpx.ConnectError:
         logger.warning(f"オフライン。キューに保持: {path.name}")
@@ -89,7 +89,7 @@ def register_user(local_user_id: str) -> bool:
         resp = httpx.post(
             f"{config.get_api_url()}/auth/register",
             json={"user_id": local_user_id},
-            timeout=15,
+            timeout=60,
         )
         if resp.status_code == 200:
             data = resp.json()
@@ -121,7 +121,7 @@ def refresh_token() -> bool:
         resp = httpx.post(
             f"{config.get_api_url()}/auth/refresh",
             json={"refresh_token": rt},
-            timeout=15,
+            timeout=60,
         )
         if resp.status_code == 200:
             data = resp.json()
